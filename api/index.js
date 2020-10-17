@@ -1,24 +1,15 @@
+require('dotenv').config()
 import express from 'express';
 import session from 'express-session';
 import uuid from 'uuid/v4';
-import passport from 'passport';
 import { ApolloServer } from 'apollo-server-express';
 import User from './User';
 import typeDefs from './typeDefs';
 import resolvers from './resolvers';
+import passport from './passportStrategies';
 
 const PORT = 4000;
 const SESSION_SECRECT = 'bad secret';
-
-passport.serializeUser((user, done) => {
-  done(null, user.id);
-});
-
-passport.deserializeUser((id, done) => {
-  const users = User.getUsers();
-  const matchingUser = users.find(user => user.id === id);
-  done(null, matchingUser);
-});
 
 const app = express();
 
@@ -31,6 +22,24 @@ app.use(session({
 
 app.use(passport.initialize());
 app.use(passport.session());
+
+const {
+  REACT_APP_FACBOOK_APP_SCOPES,
+  REACT_APP_INSTA_APP_SCOPES,
+  REACT_APP_API_URL
+} = process.env;
+
+
+const authRedirects = {
+  successRedirect: `${REACT_APP_API_URL}/graphql`,
+  failureRedirect: `${REACT_APP_API_URL}/graphql`,
+}
+
+app.get('/auth/facebook', passport.authenticate('facebook', { scope: REACT_APP_FACBOOK_APP_SCOPES.split(" ") }));
+app.get('/auth/facebook/callback', passport.authenticate('facebook', authRedirects));
+
+app.get('/auth/instagram', passport.authenticate('instagram', { scope: REACT_APP_INSTA_APP_SCOPES.split(" ") }));
+app.get('/auth/instagram/callback', passport.authenticate('instagram', authRedirects));
 
 const server = new ApolloServer({
   typeDefs,
